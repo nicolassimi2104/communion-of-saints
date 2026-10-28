@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Communion of Saints</title>
+<meta name="description" content="An All Saints' Day game: confirmation saints battle through a bracket of virtue trials and trivia.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23100a1c'/%3E%3Cpath d='M14 5h4v7h7v4h-7v11h-4V16H7v-4h7z' fill='%23e2b84b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=UnifrakturCook:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="kicker">All Saints' Day &middot; November 1</p>
+      <h1><a href="./" id="home">Communion of Saints</a></h1>
+    </div>
+    <div class="badges" id="badges"></div>
+  </header>
+  <div class="rule"></div>
+  <main id="main">
+    <div id="top"></div>
+
+    <section id="formSection" class="panel gold" hidden>
+      <form id="joinForm" autocomplete="off">
+        <h2 id="formTitle">Enter your saint</h2>
+        <p class="muted small" id="formLead"></p>
+        <div class="fld"><label for="fName" id="nameLbl">Your name</label><input type="text" id="fName" maxlength="40" required placeholder="First name"></div>
+        <div class="fld"><label for="fSaint">Confirmation saint</label><input type="text" id="fSaint" maxlength="60" required placeholder="e.g. Thomas Aquinas"></div>
+        <div class="fld">
+          <span class="lbl" id="mainLbl">Main type</span>
+          <p class="hint">Pick the one that fits your saint best. It sets your saint's strongest virtue and special power.</p>
+          <div class="tpick" id="mainPick" role="radiogroup" aria-labelledby="mainLbl"></div>
+        </div>
+        <div class="fld">
+          <span class="lbl" id="sideLbl">Side type (optional)</span>
+          <p class="hint">A second side of your saint. It adds a smaller boost and more arenas where you are at home.</p>
+          <div class="tpick compact" id="sidePick" role="radiogroup" aria-labelledby="sideLbl"></div>
+        </div>
+        <div class="fld">
+          <label for="fBlurb">A line about your saint (optional)</label>
+          <input type="text" id="fBlurb" maxlength="160" placeholder="Printed on the card. It does not change your strength.">
+        </div>
+        <button class="btn primary big" id="fGo" type="submit">Join the Communion</button>
+        <p class="msg" id="fMsg" role="status"></p>
+      </form>
+    </section>
+
+    <div id="bottom"></div>
+  </main>
+</div>
+<div id="toast" role="status" hidden></div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="game.js"></script>
+<script src="api.js"></script>
+<script src="qr.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
