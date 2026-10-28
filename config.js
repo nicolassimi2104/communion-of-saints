@@ -3,6 +3,6 @@
    Project Settings > API: "Project URL" and the "anon" key (or the "publishable" key).
    Until you fill these in, the site runs in TEST MODE (see README). */
 window.COS_CONFIG = {
-  SUPABASE_URL: 'https://YOUR-PROJECT.supabase.co',
-  SUPABASE_KEY: 'YOUR-ANON-OR-PUBLISHABLE-KEY'
+  SUPABASE_URL: 'https://nwzgsylxklhoklryjbdz.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_q5yLc7_UfWpOAMMNgEb7MQ_wHVhTcf5'
 };
