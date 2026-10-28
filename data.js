@@ -33,7 +33,7 @@
       label: 'Doctor', sig: 'wisdom',
       hint: 'Teacher, writer, theologian (Aquinas, Augustine, Jerome)',
       motto: 'Faith seeking understanding.',
-      ability: { name: 'Sound Doctrine', effect: 'doctrine', text: 'A correct answer is worth +7 instead of +3.' }
+      ability: { name: 'Sound Doctrine', effect: 'doctrine', text: 'A correct answer is worth 4 more points.' }
     },
     mystic: {
       label: 'Mystic', sig: 'faith',
@@ -88,39 +88,48 @@
       flavor: 'Doors locked, hearts waiting, and then a rushing wind.' }
   ];
 
+  /* How hard a question is decides how many points a correct answer adds to the clash.
+     Later rounds and deciding clashes lean toward harder questions (see startClash in game.js). */
+  CS.DIFFICULTY = {
+    1: { label: 'Easy', bonus: 3 },
+    2: { label: 'Medium', bonus: 5 },
+    3: { label: 'Hard', bonus: 7 }
+  };
+
   /* Trivia. The FIRST option is always the correct one; the order is shuffled in play.
-     q = question, o = [correct, wrong, wrong, wrong], n = note shown after the reveal. */
+     q = question, o = [correct, wrong, wrong, wrong], n = note shown after the reveal,
+     d = difficulty 1 (easy), 2 (medium) or 3 (hard). Leave d off and it counts as easy. */
   CS.QUESTIONS = [
-    { q: 'Who was the first Christian martyr?', o: ['Stephen', 'James the Greater', 'Peter', 'Paul'], n: 'Stephen was stoned in Acts 7, with Saul looking on.' },
-    { q: 'Which Apostle was a tax collector before Jesus called him?', o: ['Matthew', 'Andrew', 'Thomas', 'Philip'], n: 'Matthew, also called Levi (Mt 9:9).' },
-    { q: 'Jesus renames Simon "Peter." What does the name mean?', o: ['Rock', 'Shepherd', 'Fisherman', 'Faithful'], n: 'Petros and Cephas both mean rock (Mt 16:18).' },
-    { q: 'Which saint wrote the Summa Theologiae?', o: ['Thomas Aquinas', 'Augustine', 'Bonaventure', 'Anselm'], n: 'Aquinas, the Angelic Doctor.' },
-    { q: 'Who founded the Society of Jesus, the Jesuits?', o: ['Ignatius of Loyola', 'Francis Xavier', 'Dominic', 'Philip Neri'], n: 'Ignatius, approved by Pope Paul III in 1540.' },
-    { q: 'On what date do we celebrate All Saints’ Day?', o: ['November 1', 'October 31', 'November 2', 'December 8'], n: 'All Souls’ Day follows on November 2.' },
-    { q: 'What does the bishop use to anoint a person in Confirmation?', o: ['Sacred chrism', 'Holy water', 'Oil of the sick', 'Blessed ashes'], n: 'Chrism, blessed at the Chrism Mass.' },
-    { q: 'Which Franciscan priest volunteered to die in another prisoner’s place at Auschwitz?', o: ['Maximilian Kolbe', 'Padre Pio', 'Anthony of Padua', 'Bonaventure'], n: 'Kolbe, in 1941.' },
-    { q: 'Who was beheaded in 1535 for refusing to accept Henry VIII as head of the Church in England?', o: ['Thomas More', 'Thomas Becket', 'Thomas Aquinas', 'Thomas Cranmer'], n: 'More: "the king’s good servant, but God’s first."' },
-    { q: 'Where was Saul when the risen Jesus appeared to him?', o: ['On the road to Damascus', 'In Jerusalem', 'In Antioch', 'In Tarsus'], n: 'Acts 9.' },
-    { q: 'Which saint is credited with the first live Nativity scene, at Greccio in 1223?', o: ['Francis of Assisi', 'Anthony of Padua', 'Nicholas', 'Benedict'], n: 'Francis, three years before his death.' },
-    { q: '"Our heart is restless until it rests in you" opens which saint’s Confessions?', o: ['Augustine', 'Jerome', 'Ambrose', 'Gregory the Great'], n: 'Augustine of Hippo.' },
-    { q: 'How many gifts of the Holy Spirit does the Church traditionally list (Isaiah 11)?', o: ['Seven', 'Three', 'Nine', 'Twelve'], n: 'Wisdom, understanding, counsel, fortitude, knowledge, piety, fear of the Lord.' },
-    { q: 'Which archangel announced to Mary that she would conceive the Son of God?', o: ['Gabriel', 'Michael', 'Raphael', 'Uriel'], n: 'Luke 1:26-38.' },
-    { q: 'Joan of Arc led armies in defense of which country?', o: ['France', 'England', 'Spain', 'Italy'], n: 'France, during the Hundred Years’ War.' },
-    { q: 'Paul’s "Love is patient, love is kind" passage is in his first letter to which city?', o: ['Corinth', 'Ephesus', 'Rome', 'Philippi'], n: '1 Corinthians 13.' },
-    { q: 'Which saint is traditionally said to have used the shamrock to teach about the Trinity?', o: ['Patrick', 'Columba', 'Brendan', 'Brigid'], n: 'Patrick, Apostle of Ireland.' },
-    { q: '"Pray and work" sums up the Rule of which saint?', o: ['Benedict', 'Bruno', 'Basil', 'Bernard'], n: 'Benedict of Nursia.' },
-    { q: 'Which saint is said to be the first to receive the stigmata, on Mount La Verna in 1224?', o: ['Francis of Assisi', 'Padre Pio', 'Catherine of Siena', 'Clare'], n: 'Francis of Assisi.' },
-    { q: 'Which teenager, canonized in 2025, built a website cataloguing Eucharistic miracles?', o: ['Carlo Acutis', 'Pier Giorgio Frassati', 'Dominic Savio', 'Tarcisius'], n: 'Carlo Acutis, canonized September 7, 2025.' },
-    { q: 'Which Gospel is traditionally the shortest?', o: ['Mark', 'Matthew', 'Luke', 'John'], n: 'Mark has 16 chapters.' },
-    { q: 'Which Apostle was Peter’s brother?', o: ['Andrew', 'John', 'Philip', 'Bartholomew'], n: 'Andrew, the first-called.' },
-    { q: 'Which saint is known as "The Little Flower"?', o: ['Thérèse of Lisieux', 'Teresa of Ávila', 'Faustina', 'Bernadette'], n: 'Thérèse, who taught the "little way."' },
-    { q: 'Which council of 325 first produced the Nicene Creed?', o: ['Nicaea', 'Chalcedon', 'Trent', 'Ephesus'], n: 'The First Council of Nicaea.' },
-    { q: 'Which saint translated most of the Bible into Latin, the Vulgate?', o: ['Jerome', 'Ambrose', 'Augustine', 'Gregory'], n: 'Jerome, from his cell in Bethlehem.' },
-    { q: 'The Beatitudes open which sermon of Jesus?', o: ['The Sermon on the Mount', 'The Last Discourse', 'The Bread of Life Discourse', 'The Olivet Discourse'], n: 'Matthew 5.' },
-    { q: 'Which saint founded the Missionaries of Charity in Calcutta?', o: ['Teresa of Calcutta', 'Katharine Drexel', 'Elizabeth Ann Seton', 'Frances Cabrini'], n: 'Founded in 1950.' },
-    { q: 'Who was elected pope in 1978 as the first non-Italian pope in over four centuries?', o: ['John Paul II', 'Paul VI', 'John Paul I', 'Benedict XVI'], n: 'Karol Wojtyła of Poland.' },
-    { q: 'In which Gospel does the parable of the Prodigal Son appear?', o: ['Luke', 'Matthew', 'Mark', 'John'], n: 'Luke 15.' },
-    { q: 'On what date is the feast of Saint Joseph, husband of Mary?', o: ['March 19', 'March 17', 'May 1', 'December 26'], n: 'March 19. Patrick is March 17.' }
+    { q: 'Who was the first Christian martyr?', o: ['Stephen', 'James the Greater', 'Peter', 'Paul'], n: 'Stephen was stoned in Acts 7, with Saul looking on.', d: 1 },
+    { q: 'Which Apostle was a tax collector before Jesus called him?', o: ['Matthew', 'Andrew', 'Thomas', 'Philip'], n: 'Matthew, also called Levi (Mt 9:9).', d: 1 },
+    { q: 'Jesus renames Simon "Peter." What does the name mean?', o: ['Rock', 'Shepherd', 'Fisherman', 'Faithful'], n: 'Petros and Cephas both mean rock (Mt 16:18).', d: 1 },
+    { q: 'Which saint wrote the Summa Theologiae?', o: ['Thomas Aquinas', 'Augustine', 'Bonaventure', 'Anselm'], n: 'Aquinas, the Angelic Doctor.', d: 2 },
+    { q: 'Who founded the Society of Jesus, the Jesuits?', o: ['Ignatius of Loyola', 'Francis Xavier', 'Dominic', 'Philip Neri'], n: 'Ignatius, approved by Pope Paul III in 1540.', d: 2 },
+    { q: 'On what date do we celebrate All Saints’ Day?', o: ['November 1', 'October 31', 'November 2', 'December 8'], n: 'All Souls’ Day follows on November 2.', d: 1 },
+    { q: 'What does the bishop use to anoint a person in Confirmation?', o: ['Sacred chrism', 'Holy water', 'Oil of the sick', 'Blessed ashes'], n: 'Chrism, blessed at the Chrism Mass.', d: 1 },
+    { q: 'Which Franciscan priest volunteered to die in another prisoner’s place at Auschwitz?', o: ['Maximilian Kolbe', 'Padre Pio', 'Anthony of Padua', 'Bonaventure'], n: 'Kolbe, in 1941.', d: 2 },
+    { q: 'Who was beheaded in 1535 for refusing to accept Henry VIII as head of the Church in England?', o: ['Thomas More', 'Thomas Becket', 'Thomas Aquinas', 'Thomas Cranmer'], n: 'More: "the king’s good servant, but God’s first."', d: 2 },
+    { q: 'Where was Saul when the risen Jesus appeared to him?', o: ['On the road to Damascus', 'In Jerusalem', 'In Antioch', 'In Tarsus'], n: 'Acts 9.', d: 1 },
+    { q: 'Which saint is credited with the first live Nativity scene, at Greccio in 1223?', o: ['Francis of Assisi', 'Anthony of Padua', 'Nicholas', 'Benedict'], n: 'Francis, three years before his death.', d: 2 },
+    { q: '"Our heart is restless until it rests in you" opens which saint’s Confessions?', o: ['Augustine', 'Jerome', 'Ambrose', 'Gregory the Great'], n: 'Augustine of Hippo.', d: 2 },
+    { q: 'How many gifts of the Holy Spirit does the Church traditionally list (Isaiah 11)?', o: ['Seven', 'Three', 'Nine', 'Twelve'], n: 'Wisdom, understanding, counsel, fortitude, knowledge, piety, fear of the Lord.', d: 2 },
+    { q: 'Which archangel announced to Mary that she would conceive the Son of God?', o: ['Gabriel', 'Michael', 'Raphael', 'Uriel'], n: 'Luke 1:26-38.', d: 1 },
+    { q: 'Joan of Arc led armies in defense of which country?', o: ['France', 'England', 'Spain', 'Italy'], n: 'France, during the Hundred Years’ War.', d: 1 },
+    { q: 'Paul’s "Love is patient, love is kind" passage is in his first letter to which city?', o: ['Corinth', 'Ephesus', 'Rome', 'Philippi'], n: '1 Corinthians 13.', d: 2 },
+    { q: 'Which saint is traditionally said to have used the shamrock to teach about the Trinity?', o: ['Patrick', 'Columba', 'Brendan', 'Brigid'], n: 'Patrick, Apostle of Ireland.', d: 1 },
+    { q: '"Pray and work" sums up the Rule of which saint?', o: ['Benedict', 'Bruno', 'Basil', 'Bernard'], n: 'Benedict of Nursia.', d: 2 },
+    { q: 'Which saint is said to be the first to receive the stigmata, on Mount La Verna in 1224?', o: ['Francis of Assisi', 'Padre Pio', 'Catherine of Siena', 'Clare'], n: 'Francis of Assisi.', d: 2 },
+    { q: 'Which teenager, canonized in 2025, built a website cataloguing Eucharistic miracles?', o: ['Carlo Acutis', 'Pier Giorgio Frassati', 'Dominic Savio', 'Tarcisius'], n: 'Carlo Acutis, canonized September 7, 2025.', d: 2 },
+    { q: 'Which Gospel is traditionally the shortest?', o: ['Mark', 'Matthew', 'Luke', 'John'], n: 'Mark has 16 chapters.', d: 2 },
+    { q: 'Which Apostle was Peter’s brother?', o: ['Andrew', 'John', 'Philip', 'Bartholomew'], n: 'Andrew, the first-called.', d: 1 },
+    { q: 'Which saint is known as "The Little Flower"?', o: ['Thérèse of Lisieux', 'Teresa of Ávila', 'Faustina', 'Bernadette'], n: 'Thérèse, who taught the "little way."', d: 2 },
+    { q: 'Which council of 325 first produced the Nicene Creed?', o: ['Nicaea', 'Chalcedon', 'Trent', 'Ephesus'], n: 'The First Council of Nicaea.', d: 3 },
+    { q: 'Which saint translated most of the Bible into Latin, the Vulgate?', o: ['Jerome', 'Ambrose', 'Augustine', 'Gregory'], n: 'Jerome, from his cell in Bethlehem.', d: 2 },
+    { q: 'The Beatitudes open which sermon of Jesus?', o: ['The Sermon on the Mount', 'The Last Discourse', 'The Bread of Life Discourse', 'The Olivet Discourse'], n: 'Matthew 5.', d: 2 },
+    { q: 'Which saint founded the Missionaries of Charity in Calcutta?', o: ['Teresa of Calcutta', 'Katharine Drexel', 'Elizabeth Ann Seton', 'Frances Cabrini'], n: 'Founded in 1950.', d: 1 },
+    { q: 'Who was elected pope in 1978 as the first non-Italian pope in over four centuries?', o: ['John Paul II', 'Paul VI', 'John Paul I', 'Benedict XVI'], n: 'Karol Wojtyła of Poland.', d: 2 },
+    { q: 'In which Gospel does the parable of the Prodigal Son appear?', o: ['Luke', 'Matthew', 'Mark', 'John'], n: 'Luke 15.', d: 2 },
+    { q: 'On what date is the feast of Saint Joseph, husband of Mary?', o: ['March 19', 'March 17', 'May 1', 'December 26'], n: 'March 19. Patrick is March 17.', d: 3 }
   ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = CS;

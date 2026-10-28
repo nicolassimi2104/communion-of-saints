@@ -13,8 +13,9 @@
   var SIDE_SIG = 2;     // guaranteed points added to the side type's signature virtue
   var HOME_MAIN = 3;    // clash bonus when your MAIN type is favored by the arena
   var HOME_SIDE = 2;    // clash bonus when only your SIDE type is favored
-  var QUESTION_BONUS = 3;
-  CS.RULES = { TOTAL: TOTAL, MIN: MIN, MAX: MAX, MAIN_SIG: MAIN_SIG, SIDE_SIG: SIDE_SIG, HOME_MAIN: HOME_MAIN, HOME_SIDE: HOME_SIDE, QUESTION_BONUS: QUESTION_BONUS };
+  var QUESTION_BONUS = 3;   // fallback worth of a question with no difficulty tag; real values live in CS.DIFFICULTY
+  var DOCTRINE_EXTRA = 4;   // Sound Doctrine adds this to a correct answer
+  CS.RULES = { TOTAL: TOTAL, MIN: MIN, MAX: MAX, MAIN_SIG: MAIN_SIG, SIDE_SIG: SIDE_SIG, HOME_MAIN: HOME_MAIN, HOME_SIDE: HOME_SIDE, QUESTION_BONUS: QUESTION_BONUS, DOCTRINE_EXTRA: DOCTRINE_EXTRA };
 
   /* ---------- small helpers ---------- */
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -102,6 +103,25 @@
     return s;
   }
 
+  function questionWorth(q) { var t = CS.DIFFICULTY && CS.DIFFICULTY[(q && q.d) || 1]; return t ? t.bonus : QUESTION_BONUS; }
+  /* Early rounds lean easy, the final leans hard, and the deciding clash of a match gets a push
+     toward harder questions. Falls back gracefully when a tier has run out. */
+  function pickQuestion(s, n, rng) {
+    var all = CS.QUESTIONS.map(function (_, i) { return i; });
+    var pool = all.filter(function (i) { return s.usedQ.indexOf(i) < 0; });
+    if (!pool.length) { s.usedQ = []; pool = all; }
+    var depth = s.totalRounds > 1 ? (s.roundNo - 1) / (s.totalRounds - 1) : 1;
+    if (n >= 2 * winsNeeded(s) - 1) depth = Math.min(1, depth + 0.25);
+    var w = { 1: 1.6 - 1.2 * depth, 2: 1.5, 3: 0.2 + 1.6 * depth }, tiers = [], sum = 0;
+    [1, 2, 3].forEach(function (t) {
+      var has = pool.filter(function (i) { return (CS.QUESTIONS[i].d || 1) === t; });
+      if (has.length) { tiers.push({ t: t, has: has, w: w[t] }); sum += w[t]; }
+    });
+    var r = rng() * sum, pick = tiers[tiers.length - 1];
+    for (var i = 0; i < tiers.length; i++) { r -= tiers[i].w; if (r <= 0) { pick = tiers[i]; break; } }
+    return pick.has[Math.floor(rng() * pick.has.length)];
+  }
+
   function startClash(state, rng) {
     rng = rng || Math.random;
     var s = clone(state), m = s.matches[s.cur];
@@ -110,11 +130,9 @@
     var free = CS.ARENAS.filter(function (a) { return m.vs.indexOf(a.id) < 0; });
     var arena = free[Math.floor(rng() * free.length)];
     m.vs.push(arena.id);
-    var pool = CS.QUESTIONS.map(function (_, i) { return i; }).filter(function (i) { return s.usedQ.indexOf(i) < 0; });
-    if (!pool.length) { s.usedQ = []; pool = CS.QUESTIONS.map(function (_, i) { return i; }); }
-    var qid = pool[Math.floor(rng() * pool.length)];
+    var qid = pickQuestion(s, n, rng);
     s.usedQ.push(qid);
-    s.clash = { key: s.gid + '-' + s.roundNo + '-' + s.cur + '-' + n, n: n, arena: arena.id, qid: qid, order: shuffle([0, 1, 2, 3], rng), step: 'ask' };
+    s.clash = { key: s.gid + '-' + s.roundNo + '-' + s.cur + '-' + n, n: n, arena: arena.id, qid: qid, worth: questionWorth(CS.QUESTIONS[qid]), order: shuffle([0, 1, 2, 3], rng), step: 'ask' };
     return s;
   }
 
@@ -141,7 +159,8 @@
         eff: used ? abilityOf(p.types || []).effect : null
       };
     });
-    var res = { arena: arena.id, virtue: [], base: [], rolls: [], die: [], home: [], qb: [], adj: [0, 0], cut: [false, false], total: [], pick: [], used: [], eff: [] };
+    var worth = c.worth != null ? c.worth : QUESTION_BONUS;
+    var res = { arena: arena.id, worth: worth, virtue: [], base: [], rolls: [], die: [], home: [], qb: [], adj: [0, 0], cut: [false, false], total: [], pick: [], used: [], eff: [] };
     side.forEach(function (x, i) {
       var v = x.eff === 'goforth' ? bestVirtue(x.stats) : arena.virtue;
       var nd = x.eff === 'vision' ? 3 : 1, rolls = [];
@@ -150,7 +169,7 @@
       if (x.eff === 'steady') die = Math.max(die, 5);
       res.virtue.push(v); res.base.push(x.stats[v] || 0); res.rolls.push(rolls); res.die.push(die);
       res.home.push(homeBonus(x.types, arena));
-      res.qb.push(x.right ? (x.eff === 'doctrine' ? 7 : QUESTION_BONUS) : 0);
+      res.qb.push(x.right ? worth + (x.eff === 'doctrine' ? DOCTRINE_EXTRA : 0) : 0);
       res.pick.push(x.pick); res.used.push(x.used); res.eff.push(x.eff);
     });
     side.forEach(function (x, i) {
@@ -172,6 +191,89 @@
     m.used = [m.used[0] || res.used[0], m.used[1] || res.used[1]];
     if (m.w[win] >= winsNeeded(s)) m.winner = ids[win];
     return s;
+  }
+
+  /* ---------- plain-English explanations ---------- */
+  function signed(n) { return n > 0 ? '+' + n : n < 0 ? '\u2212' + Math.abs(n) : '0'; }
+  function vlabel(k) { var v = CS.VIRTUES.filter(function (x) { return x.k === k; })[0]; return v ? v.label : k; }
+  function tlabel(k) { return CS.TYPES[k] ? CS.TYPES[k].label : k; }
+  function joinAnd(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+  function tierName(c) { var q = CS.QUESTIONS[c.qid], t = CS.DIFFICULTY && CS.DIFFICULTY[(q && q.d) || 1]; return t ? t.label.toLowerCase() : 'easy'; }
+
+  /* ctx = { saint: [a, b], person: [a, b], types: [[..], [..]] }, all indexed by seat.
+     Returns the beats the reveal plays one by one, plus a one-sentence "why it was decided". */
+  function explain(s, ctx) {
+    var c = s.clash, r = c.res, q = CS.QUESTIONS[c.qid], arena = arenaById(r.arena), n = ctx.saint;
+    var W = r.win, L = 1 - W, beats = [];
+    var vText;
+    if (r.virtue[0] === r.virtue[1]) vText = arena.name + ' tests ' + vlabel(r.virtue[0]) + '. ' + n[0] + ' has ' + r.base[0] + ', ' + n[1] + ' has ' + r.base[1] + '.';
+    else vText = [0, 1].map(function (i) { return n[i] + ' uses ' + (r.eff[i] === 'goforth' ? 'their best virtue, ' : '') + vlabel(r.virtue[i]) + ' (' + r.base[i] + ')'; }).join('; ') + '.';
+    beats.push({ k: 'virtue', label: r.virtue[0] === r.virtue[1] ? vlabel(r.virtue[0]) : 'Virtue', vals: r.base.slice(), text: vText });
+    beats.push({ k: 'die', label: 'Die roll', vals: r.die.slice(), text: [0, 1].map(function (i) {
+      var rolls = r.rolls[i];
+      if (rolls.length > 1) return n[i] + ' rolls three dice (' + rolls.join(', ') + ') and keeps the ' + r.die[i];
+      if (r.eff[i] === 'steady' && rolls[0] < 5) return n[i] + ' rolls a ' + rolls[0] + ', and Rule of Life lifts it to 5';
+      return n[i] + ' rolls a ' + rolls[0];
+    }).join('. ') + '.' });
+    var fav = joinAnd(arena.favors.map(tlabel)), homeBits = [];
+    [0, 1].forEach(function (i) {
+      var would = homeBonus(ctx.types[i] || [], arena);
+      if (r.cut[i] && would) homeBits.push(n[i] + ' is at home, but Works of Mercy cancels it');
+      else if (would) homeBits.push(n[i] + ' is at home for ' + signed(would));
+    });
+    beats.push({ k: 'home', label: 'Home arena', vals: r.home.slice(), text: arena.name + ' favors ' + fav + '. ' + (homeBits.length ? homeBits.join('. ') + '.' : 'Neither saint is at home here.') });
+    beats.push({ k: 'answer', label: 'Question', vals: r.qb.slice(), text: 'The answer: ' + q.o[0] + '. ' + [0, 1].map(function (i) {
+      if (r.pick[i] == null) return n[i] + ' did not answer';
+      var ok = c.order[r.pick[i]] === 0;
+      return n[i] + ' chose ' + q.o[c.order[r.pick[i]]] + (ok ? (r.qb[i] ? ', right for ' + signed(r.qb[i]) : ', right, but the bonus is cancelled') : ', wrong');
+    }).join('. ') + '.' });
+    if (r.used[0] || r.used[1]) {
+      var pb = [0, 1].filter(function (i) { return r.used[i]; }).map(function (i) { var a = abilityOf(ctx.types[i] || []); return n[i] + ' invokes ' + a.name + ': ' + a.text; });
+      beats.push({ k: 'power', label: 'Intercession', vals: r.adj.slice(), text: pb.join(' ') });
+    }
+    var how = { score: '', virtue: ' The scores tied, so the higher virtue decides it.', coin: ' Everything tied, so the lot decides it.' }[r.how];
+    beats.push({ k: 'total', label: 'Total', vals: r.total.slice(), text: n[W] + ' takes the clash, ' + r.total[W] + ' to ' + r.total[L] + '.' + how });
+    var d = { virtue: r.base[W] - r.base[L], die: r.die[W] - r.die[L], home: r.home[W] - r.home[L], answer: r.qb[W] - r.qb[L], power: r.adj[W] - r.adj[L] };
+    var top = 'virtue'; Object.keys(d).forEach(function (k) { if (d[k] > d[top]) top = k; });
+    var why = {
+      virtue: n[W] + ' won on strength: ' + vlabel(r.virtue[W]) + ' ' + r.base[W] + ' against ' + r.base[L] + '.',
+      die: 'The dice decided it: ' + n[W] + ' rolled ' + r.die[W] + ' to ' + r.die[L] + '.',
+      home: 'Home ground made the difference: ' + n[W] + ' felt at home in ' + arena.name + '.',
+      answer: 'The question decided it: ' + n[W] + ' answered ' + (r.qb[L] ? 'for a bigger bonus' : 'correctly while ' + n[L] + ' did not') + '.',
+      power: 'The intercession decided it: ' + n[W] + ' invoked ' + abilityOf(ctx.types[W] || []).name + '.'
+    };
+    var margin = r.total[W] - r.total[L];
+    var summary = (d[top] > 0 ? why[top] : 'Dead even in every part of the clash.') + (margin <= 2 ? ' What a close one.' : margin >= 8 ? ' A commanding win.' : '');
+    return { beats: beats, summary: summary, margin: margin };
+  }
+
+  /* Lines the host can read aloud for the current moment of the match. */
+  function script(s, ctx) {
+    var m = s.matches[s.cur]; if (!m) return [];
+    var n = ctx.saint, p = ctx.person, need = winsNeeded(s), out = [], c = s.clash;
+    function who(i) { return n[i] + ' (' + p[i] + '\u2019s patron, ' + joinAnd((ctx.types[i] || []).map(tlabel)) + ')'; }
+    function best(i) { var card = s.cards[i === 0 ? m.a : m.b]; var k = card ? bestVirtue(card.stats) : null; return k ? n[i] + ' is strongest in ' + vlabel(k) + ' (' + card.stats[k] + ')' : ''; }
+    if (!c) {
+      out.push('Next up: ' + who(0) + ' against ' + who(1) + '.');
+      out.push('First to win ' + need + ' clash' + (need > 1 ? 'es' : '') + ' takes the match.');
+      out.push(best(0) + '. ' + best(1) + '.');
+      out.push('Each clash has an arena that tests one virtue, a trivia question, and a die roll. Say that out loud once so everyone is following.');
+      return out;
+    }
+    var arena = arenaById(c.arena), q = CS.QUESTIONS[c.qid], worth = c.worth != null ? c.worth : QUESTION_BONUS;
+    if (c.step === 'ask') {
+      out.push('Clash ' + c.n + ': ' + arena.name + '. ' + arena.flavor);
+      out.push('This arena tests ' + vlabel(arena.virtue) + '. ' + joinAnd(arena.favors.map(tlabel)) + ' saints are at home here and get a bonus.');
+      [0, 1].forEach(function (i) { var h = homeBonus(ctx.types[i] || [], arena); if (h) out.push(n[i] + ' is at home, so ' + signed(h) + ' to start.'); });
+      out.push('This is a ' + tierName(c) + ' question, worth ' + signed(worth) + ' if answered correctly. Read it aloud: \u201C' + q.q + '\u201D');
+      out.push('Players: pick A to D on your phone, decide whether to spend your once-per-match power, then lock in.');
+      return out;
+    }
+    var e = explain(s, ctx);
+    e.beats.forEach(function (b) { out.push(b.text); });
+    out.push(e.summary);
+    out.push('Match score: ' + n[0] + ' ' + m.w[0] + ', ' + n[1] + ' ' + m.w[1] + '.' + (m.winner ? ' That settles the match, ' + n[m.winner === m.a ? 0 : 1] + ' advances.' : ' On to the next clash.'));
+    return out;
   }
 
   function nextClash(state, rng) { var s = clone(state); s.clash = null; return startClash(s, rng); }
@@ -216,7 +318,7 @@
     dealStats: dealStats, dealCards: dealCards, beginPlay: beginPlay, startClash: startClash,
     resolveClash: resolveClash, nextClash: nextClash, finishMatch: finishMatch, award: award,
     endRound: endRound, backToLobby: backToLobby, winsNeeded: winsNeeded, statusFor: statusFor,
-    estimateMinutes: estimateMinutes, bestVirtue: bestVirtue
+    estimateMinutes: estimateMinutes, bestVirtue: bestVirtue, explain: explain, script: script, questionWorth: questionWorth
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = CS.game;
 })(typeof window !== 'undefined' ? window : globalThis);

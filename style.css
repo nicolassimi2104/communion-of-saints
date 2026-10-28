@@ -161,17 +161,6 @@ button.opt:hover:not(:disabled){border-color:var(--gold)}
 .status .ok{color:var(--good);border-color:var(--good)}
 .ovr{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .ovr .row{gap:6px}
-.res{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.rc{border:1px solid var(--line);padding:12px;min-width:0;animation:rise .5s cubic-bezier(.2,.9,.3,1.2) both}
-.rc:nth-child(2){animation-delay:.18s}
-.rc.w{border-color:var(--gold);background:rgba(226,184,75,.08)}
-.rn{font:700 12px var(--f-display);letter-spacing:.06em;margin-bottom:8px;overflow-wrap:anywhere}
-.rc dl{margin:0;display:grid;gap:3px}
-.rc dl div{display:flex;justify-content:space-between;gap:8px;font-size:16px}
-.rc dt{color:var(--muted)}
-.rc dd{margin:0;font-variant-numeric:tabular-nums;text-align:right}
-.rc dd.cut{text-decoration:line-through;color:var(--muted)}
-.tot{margin-top:10px;font:700 34px/1 var(--f-display);text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
 .banner{margin-top:16px;padding:12px;text-align:center;border:1px solid var(--gold);font:700 15px var(--f-display);letter-spacing:.08em;text-wrap:balance}
 .note{margin:10px 0 0;font-size:16px;color:var(--muted);font-style:italic}
 @keyframes rise{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
@@ -193,8 +182,58 @@ summary{cursor:pointer;font:500 11px var(--f-display);letter-spacing:.16em;text-
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--gold);color:var(--on-gold);padding:10px 16px;font:700 12px var(--f-display);letter-spacing:.08em;max-width:calc(100% - 32px);text-align:center;z-index:20;border-radius:3px}
 @media (max-width:560px){
   .stat{grid-template-columns:86px minmax(0,1fr) 22px}
-  .res{gap:8px}
   .status{grid-template-columns:1fr}
   .qrbox{grid-template-columns:1fr;justify-items:center;text-align:center}
 }
-@media (prefers-reduced-motion:reduce){.rc,.roster.deal .cardwrap{animation:none}}
+@media (prefers-reduced-motion:reduce){.roster.deal .cardwrap,.live .beat,.meet .card,.meet .vs,.fight .card,.beat .bv.roll{animation:none!important}}
+
+/* what's happening: caption bar, question worth, reveal beats */
+.caption{margin:12px 0 14px;padding:10px 14px;border-left:3px solid var(--gold);background:rgba(226,184,75,.07)}
+.caption p{margin:0;font-size:clamp(17px,2.4vw,21px);line-height:1.35}
+.caption .legend{margin-top:4px;font-size:14px;color:var(--muted);letter-spacing:.02em}
+.worth{display:inline-block;margin-left:8px;padding:1px 8px;border:1px solid var(--gold-deep);font-size:10px;letter-spacing:.14em;color:var(--gold);vertical-align:1px}
+.worth.d2{border-color:var(--gold);background:rgba(226,184,75,.12)}
+.worth.d3{border-color:var(--courage);color:var(--courage);background:rgba(229,86,111,.1)}
+.reveal{margin-top:16px;display:grid;gap:8px}
+.bnames{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;gap:10px;font:700 12px var(--f-display);letter-spacing:.06em;text-align:center}
+.bnames span{overflow-wrap:anywhere}
+.beat{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft)}
+.beat.banner,.beat.note{display:block}
+.bv{text-align:center;font:700 28px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--muted)}
+.bv.lead{color:var(--gold);text-shadow:0 0 14px rgba(226,184,75,.45)}
+.bm b{display:block;font:500 11px var(--f-display);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.bm span{font-size:17px;line-height:1.35}
+.bt-total{border-top:2px solid var(--gold-deep)}
+.bt-total .bv{font-size:40px}
+.reveal .banner{margin-top:6px;font-size:14px}
+.live .beat{animation:beatIn .55s cubic-bezier(.2,.9,.3,1.2) backwards}
+.live .beat .bv.roll{animation:tumble .7s ease-out backwards;animation-delay:inherit}
+@keyframes beatIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes tumble{0%{transform:rotate(-200deg) scale(.4)}60%{transform:rotate(25deg) scale(1.25)}100%{transform:none}}
+@media (max-width:560px){
+  .bnames,.beat{grid-template-columns:48px minmax(0,1fr) 48px;gap:8px}
+  .bv{font-size:24px}
+  .bt-total .bv{font-size:32px}
+  .bm span{font-size:16px}
+}
+
+/* the meeting: saints walk in, clash on VS, and the winner lunges */
+.duel>article{position:relative}
+.meet>article:first-of-type{animation:walkL 1.1s cubic-bezier(.2,.9,.25,1) backwards;animation-delay:var(--t,0ms)}
+.meet>article:last-of-type{animation:walkR 1.1s cubic-bezier(.2,.9,.25,1) backwards;animation-delay:var(--t,0ms)}
+.meet .vs{animation:vsPop 1.2s cubic-bezier(.2,.9,.25,1.4) backwards;animation-delay:calc(var(--t,0ms) + 700ms)}
+.fight>article.win:first-of-type{animation:lungeR .8s ease-in-out;animation-delay:var(--t2,0ms)}
+.fight>article.win:last-of-type{animation:lungeL .8s ease-in-out;animation-delay:var(--t2,0ms)}
+.fight>article.lose{animation:stagger .8s ease-out;animation-delay:var(--t2,0ms)}
+.fight .vs{animation:vsFlash .9s ease-out;animation-delay:var(--t2,0ms)}
+@keyframes walkL{from{opacity:0;transform:translateX(-70%) rotate(-3deg)}to{opacity:1;transform:none}}
+@keyframes walkR{from{opacity:0;transform:translateX(70%) rotate(3deg)}to{opacity:1;transform:none}}
+@keyframes vsPop{0%{opacity:0;transform:scale(.2)}55%{opacity:1;transform:scale(2.1);text-shadow:0 0 24px var(--gold)}100%{transform:none}}
+@keyframes vsFlash{0%{transform:scale(1)}30%{transform:scale(2);text-shadow:0 0 26px var(--gold)}100%{transform:none}}
+@keyframes lungeR{0%{transform:none}35%{transform:translateX(22%) scale(1.04)}100%{transform:none}}
+@keyframes lungeL{0%{transform:none}35%{transform:translateX(-22%) scale(1.04)}100%{transform:none}}
+@keyframes stagger{0%{transform:none}30%{transform:translateX(-6px) rotate(-2deg)}55%{transform:translateX(5px) rotate(1.5deg)}100%{transform:none}}
+
+/* narrator notes */
+.script ul{margin:6px 0 0;padding-left:20px;color:var(--muted)}
+.script li{margin:4px 0;font-size:16px}

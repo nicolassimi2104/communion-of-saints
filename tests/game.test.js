@@ -42,6 +42,7 @@ console.log('\nArenas that favor each type:', JSON.stringify(home));
 Object.values(home).forEach(n => assert(n >= 2, 'every type should be at home somewhere'));
 
 // 5. simulate whole tournaments with random players, abilities used at random, and check invariants
+const tiers = {}, byRound = {};
 function sim(nPlayers, format, seed) {
   const r = mulberry(seed);
   const players = {};
@@ -65,6 +66,14 @@ function sim(nPlayers, format, seed) {
     const res = s.clash.res;
     res.eff.forEach(e => { if (e) abilitiesUsed[e] = (abilitiesUsed[e]||0)+1; });
     [0,1].forEach(i => assert.strictEqual(res.total[i], res.base[i]+res.die[i]+res.home[i]+res.qb[i]+res.adj[i]));
+    // the plain-English explanation and the host script must always read cleanly
+    const ids = [m.a, m.b], ctx = { saint: ids.map(i => players[i].saint), person: ids.map(i => players[i].name), types: ids.map(i => players[i].types) };
+    const ex = G.explain(s, ctx);
+    assert(ex.beats.length >= 5 && ex.summary, 'explain gives beats and a summary');
+    const said = ex.beats.map(b => b.text).concat(ex.summary, G.script(s, ctx));
+    said.flat().forEach(t => assert(typeof t === 'string' && t && !/undefined|NaN|null/.test(t), 'bad narration line: ' + t));
+    tiers[res.worth] = (tiers[res.worth] || 0) + 1;
+    (byRound[s.roundNo + '/' + s.totalRounds] = byRound[s.roundNo + '/' + s.totalRounds] || []).push(res.worth);
     if (s.matches[s.cur].winner) { s = G.finishMatch(s); matches++; }
     else s = G.nextClash(s, r);
   }
@@ -80,6 +89,16 @@ const all = {};
 }));
 delete all._abil;
 console.log('\nSimulated tournaments (every one finished with a champion):'); console.table(all);
+
+// 7. questions: every one is tagged, harder ones are worth more, and the final leans harder than round 1
+CS.QUESTIONS.forEach(q => assert([1,2,3].includes(q.d), 'question needs d: ' + q.q));
+assert.deepStrictEqual(Object.keys(CS.DIFFICULTY).map(k => CS.DIFFICULTY[k].bonus), [3,5,7]);
+Object.keys(tiers).forEach(w => assert([3,5,7].includes(+w), 'unexpected question worth ' + w));
+const avg = a => a.reduce((x,y)=>x+y,0)/a.length;
+const early = [].concat(...Object.keys(byRound).filter(k => k.startsWith('1/')&&!k.endsWith('/1')).map(k => byRound[k]));
+const late = [].concat(...Object.keys(byRound).filter(k => k.split('/')[0] === k.split('/')[1] && k.split('/')[1] > 1).map(k => byRound[k]));
+console.log('Average question worth: first round', avg(early).toFixed(2), '| final round', avg(late).toFixed(2), '| overall tiers', JSON.stringify(tiers));
+assert(avg(late) > avg(early), 'finals should draw harder questions than round one');
 
 // 6. every ability effect actually gets exercised and changes the result as described
 // Player "a" uses the ability; player "b" does not. Seats are shuffled, so look up a's slot.
@@ -100,7 +119,7 @@ for (let seed = 1; seed <= 20; seed++) {
   o = oneClash(['warrior','doctor'], seed);       assert.strictEqual(o.res.adj[o.ib], -3);
   o = oneClash(['shepherd','doctor'], seed);      assert.strictEqual(o.res.adj[o.ia], 1); assert.strictEqual(o.res.adj[o.ib], -2);
   o = oneClash(['servant','doctor'], seed);       assert.strictEqual(o.res.cut[o.ib], true); assert.strictEqual(o.res.qb[o.ib], 0); assert.strictEqual(o.res.home[o.ib], 0);
-  o = oneClash(['doctor','martyr'], seed);        assert.strictEqual(o.res.qb[o.ia], 7);
+  o = oneClash(['doctor','martyr'], seed);        assert.strictEqual(o.res.qb[o.ia], o.res.worth + R.DOCTRINE_EXTRA);
   o = oneClash(['mystic','martyr'], seed);        assert.strictEqual(o.res.rolls[o.ia].length, 3); assert.strictEqual(o.res.die[o.ia], Math.max(...o.res.rolls[o.ia]));
   o = oneClash(['founder','martyr'], seed);       assert(o.res.die[o.ia] >= 5);
   o = oneClash(['missionary','martyr'], seed);    assert.strictEqual(o.res.base[o.ia], Math.max(...Object.values(o.cards.a.stats)));

@@ -8,7 +8,7 @@
   var CS = window.CS, G = CS.game, TYPES = CS.TYPES, VIRTUES = CS.VIRTUES;
   var VMAP = {}; VIRTUES.forEach(function (v) { VMAP[v.k] = v; });
   var TYPE_KEYS = Object.keys(TYPES);
-  var EFFECT_TAGS = { boost: '+3 to you', weaken: '−3 to foe', doctrine: 'Answer +7', vision: 'Three dice', goforth: 'Best virtue', steady: 'Die 5+', blessing: '+1 you, −2 foe', mercy: 'Cancels bonuses' };
+  var EFFECT_TAGS = { boost: '+3 to you', weaken: '−3 to foe', doctrine: 'Answer +4', vision: 'Three dice', goforth: 'Best virtue', steady: 'Die 5+', blessing: '+1 you, −2 foe', mercy: 'Cancels bonuses' };
 
   /* ---------- small helpers ---------- */
   var $ = function (id) { return document.getElementById(id); };
@@ -56,7 +56,7 @@
     online: true, missing: false, loaded: false, stateLoaded: false, saveErr: false
   };
   S.isHost = !!(S.hostKey && params.get('h') === '1');
-  var ui = { sel: {}, ov: {}, confirm: '', busy: false };
+  var ui = { sel: {}, ov: {}, confirm: '', busy: false, t: {}, rr: {}, scriptOpen: false };
 
   function tabId() { try { var t = sessionStorage.getItem('cos.tab'); if (!t) { t = rid(4); sessionStorage.setItem('cos.tab', t); } return t; } catch (e) { return 'x'; } }
   // In test mode every browser tab acts as its own phone, so identity is per tab. For real games it is per browser.
@@ -88,6 +88,26 @@
     var s = ui.sel[pid];
     if (!s || s.key !== key) s = ui.sel[pid] = { key: key, pick: null, abil: false };
     return s;
+  }
+
+  /* ---------- animation clocks ---------- */
+  // Each moving moment (a match opening, a clash being revealed) gets a start time the first time this
+  // device draws it. Redraws part-way through resume from the right point via a negative delay.
+  function age(key) { if (ui.t[key] == null) ui.t[key] = Date.now(); return Date.now() - ui.t[key]; }
+  function at(key, delay) { return ' style="animation-delay:' + Math.round(delay - age(key)) + 'ms"'; }
+  function ctxFor(ids) {
+    return { saint: ids.map(function (id) { return sn(id); }), person: ids.map(function (id) { return pn(id); }), types: ids.map(function (id) { return (S.players[id] && S.players[id].types) || []; }) };
+  }
+  function worthChip(c) {
+    var q = CS.QUESTIONS[c.qid], d = (q && q.d) || 1, t = CS.DIFFICULTY[d];
+    return '<span class="worth d' + d + '">' + esc(t.label) + ' &middot; right answer +' + (c.worth != null ? c.worth : t.bonus) + '</span>';
+  }
+  function captionHTML(g, m, c, mode, shown) {
+    var need = G.winsNeeded(g), worth = c && c.worth != null ? c.worth : 3, text;
+    if (!c) text = esc(sn(m.a)) + ' and ' + esc(sn(m.b)) + ' step forward. Win ' + need + ' clash' + (need > 1 ? 'es' : '') + ' to take the match.';
+    else if (!shown) text = mode === 'play' ? 'Pick your answer, decide whether to invoke your power, then lock in. A right answer adds +' + worth + '.' : 'Both saints answer on their phones. A right answer adds +' + worth + ' to the clash score.';
+    else text = 'Watch how the clash adds up. The highest total wins.';
+    return '<div class="caption"><p>' + text + '</p>' + (c && !shown ? '<p class="legend">Clash score = virtue + die roll + home bonus + right answer + intercession</p>' : '') + '</div>';
   }
 
   /* ---------- card markup ---------- */
@@ -157,21 +177,21 @@
       return '<li class="' + cls + '">' + inner + '</li>';
     }).join('') + '</' + tagName + '>';
   }
-  function resHTML(m, c) {
-    var r = c.res, ids = [m.a, m.b];
-    function signed(n) { return n ? (n > 0 ? '+' : '−') + Math.abs(n) : '0'; }
-    function col(i) {
-      var cut = r.cut[i];
-      return '<div class="rc' + (r.win === i ? ' w' : '') + '"><div class="rn">' + esc(sn(ids[i])) + '</div><dl>'
-        + '<div><dt>' + VMAP[r.virtue[i]].label + '</dt><dd>' + r.base[i] + '</dd></div>'
-        + '<div><dt>Die</dt><dd>' + (r.rolls[i].length > 1 ? r.rolls[i].join(' / ') + ' → ' : '') + r.die[i] + '</dd></div>'
-        + '<div><dt>Home arena</dt><dd' + (cut ? ' class="cut">cancelled' : '>' + signed(r.home[i])) + '</dd></div>'
-        + '<div><dt>Question</dt><dd' + (cut ? ' class="cut">cancelled' : '>' + signed(r.qb[i])) + '</dd></div>'
-        + '<div><dt>Intercession</dt><dd>' + signed(r.adj[i]) + '</dd></div>'
-        + '</dl><div class="tot">' + r.total[i] + '</div></div>';
+  /* The reveal plays as a sequence of beats, one per part of the score, each with a sentence that says
+     what happened. Values sit under each saint's side; the saint who leads a beat is lit. */
+  function revealHTML(m, c, ex, skey, gap) {
+    var r = c.res, ids = [m.a, m.b], live = age(skey) < ex.beats.length * gap + 2600;
+    function val(b, i) {
+      var v = b.vals[i];
+      return (b.k === 'virtue' || b.k === 'die' || b.k === 'total') ? v : (v > 0 ? '+' + v : v < 0 ? '&minus;' + Math.abs(v) : '0');
     }
-    var how = { score: '', virtue: ' Scores tied, so the higher virtue decides it.', coin: ' Everything tied, so the lot decides it.' }[r.how];
-    return '<div class="res">' + col(0) + col(1) + '</div><div class="banner">' + esc(sn(ids[r.win])) + ' takes the clash.' + how + '</div>';
+    var rows = ex.beats.map(function (b, i) {
+      var lead = b.vals[0] === b.vals[1] ? -1 : (b.vals[0] > b.vals[1] ? 0 : 1);
+      var cell = function (k) { return '<div class="bv' + (lead === k ? ' lead' : '') + (b.k === 'die' ? ' roll' : '') + '">' + val(b, k) + '</div>'; };
+      return '<div class="beat bt-' + b.k + '"' + at(skey, 250 + i * gap) + '>' + cell(0) + '<div class="bm"><b>' + esc(b.label) + '</b><span>' + esc(b.text) + '</span></div>' + cell(1) + '</div>';
+    }).join('');
+    return '<div class="reveal' + (live ? ' live' : '') + '"><div class="bnames"><span>' + esc(initials(sn(ids[0]))) + '</span><span></span><span>' + esc(initials(sn(ids[1]))) + '</span></div>' + rows
+      + '<div class="banner beat"' + at(skey, 250 + ex.beats.length * gap) + '>' + esc(ex.summary) + '</div></div>';
   }
   function overrideHTML(pid, c) {
     var s = selFor(pid, c.key), open = ui.ov[pid], cd = cardOf(pid);
@@ -183,8 +203,8 @@
       + '<button class="btn sm primary" data-act="lock" data-pid="' + esc(pid) + '">Lock in</button></div></div>';
   }
   function stageHTML(g, mode) {
-    var m = g.matches[g.cur], need = G.winsNeeded(g), c = g.clash;
-    var head = '<p class="eyebrow">Round ' + g.roundNo + ' of ' + g.totalRounds + (m ? ' · Match ' + (g.cur + 1) + ' of ' + g.matches.length : '') + ' · first to ' + need + '</p>';
+    var m = g.matches[g.cur], need = G.winsNeeded(g), c = g.clash, GAP = 1200;
+    var head = '<p class="eyebrow">Round ' + g.roundNo + ' of ' + g.totalRounds + (m ? ' &middot; Match ' + (g.cur + 1) + ' of ' + g.matches.length : '') + ' &middot; first to ' + need + '</p>';
     if (g.cur === -1) {
       var last = g.matches.length === 1;
       var winners = g.matches.map(function (mm) { return '<li>' + esc(sn(mm.winner)) + ' <small>' + esc(pn(mm.winner)) + '</small></li>'; }).join('');
@@ -193,15 +213,21 @@
     }
     var ids = [m.a, m.b], shown = c && c.step === 'shown', res = shown ? c.res : null;
     var arena = c ? G.arenaById(c.arena) : null;
-    var duel = '<div class="duel">' + [0, 1].map(function (i) {
-      return cardHTML(ids[i], { compact: true, hot: arena ? arena.virtue : null, arena: arena, wins: [m.w[i], need], spent: m.used[i], state: res ? (res.win === i ? 'win' : 'lose') : '' });
+    // timing for the reveal: beats play one by one, then the winner is settled (glow, lunge, pips)
+    var ex = shown ? G.explain(g, ctxFor(ids)) : null, skey = shown ? c.key + '-shown' : '';
+    var endAt = shown ? 250 + (ex.beats.length + 1) * GAP : 0;
+    var settled = shown && age(skey) >= endAt;
+    if (shown && !settled && !ui.rr[skey]) ui.rr[skey] = setTimeout(render, endAt - age(skey) + 80);
+    var mkey = 'm-' + g.gid + '-' + g.roundNo + '-' + g.cur;
+    var meet = age(mkey) < 2200, fight = settled && age(skey) < endAt + 1600;
+    var wins = m.w.slice(); if (shown && !settled) wins[res.win]--;
+    var duel = '<div class="duel' + (meet ? ' meet' : '') + (fight ? ' fight' : '') + '" style="--t:' + (-age(mkey)) + 'ms;--t2:' + (shown ? endAt - age(skey) : 0) + 'ms">' + [0, 1].map(function (i) {
+      return cardHTML(ids[i], { compact: true, hot: arena ? arena.virtue : null, arena: arena, wins: [wins[i], need], spent: m.used[i], state: settled ? (res.win === i ? 'win' : 'lose') : '' });
     }).join('<div class="vs">VS</div>') + '</div>';
     var body = '';
-    if (!c) {
-      body = '<div class="qbox"><p class="muted" style="margin:0">' + esc(sn(m.a)) + ' and ' + esc(sn(m.b)) + ' step forward.</p></div>';
-    } else {
+    if (c) {
       var q = CS.QUESTIONS[c.qid];
-      body = arenaHTML(c) + '<div class="qbox"><h4>The question</h4><p class="q">' + esc(q.q) + '</p>';
+      body = arenaHTML(c) + '<div class="qbox"><h4>The question ' + worthChip(c) + '</h4><p class="q">' + esc(q.q) + '</p>';
       if (mode === 'play') {
         var pid = S.me.id, i = m.a === pid ? 0 : 1, s = selFor(pid, c.key), mine = ansFor(pid, c.key), cd = cardOf(pid);
         var locked = !!mine || shown, pickPos = mine ? mine.choice : s.pick;
@@ -218,11 +244,11 @@
         if (!shown && mode === 'host') {
           body += '<div class="status">' + [0, 1].map(function (i) {
             var a = ansFor(ids[i], c.key);
-            return '<div class="' + (a ? 'ok' : '') + '"><b>' + esc(sn(ids[i])) + '</b><br>' + (a ? 'Locked in' + (a.ability ? ' · intercession' : '') : 'Thinking…') + (a ? '' : overrideHTML(ids[i], c)) + '</div>';
+            return '<div class="' + (a ? 'ok' : '') + '"><b>' + esc(sn(ids[i])) + '</b><br>' + (a ? 'Locked in' + (a.ability ? ' &middot; intercession' : '') : 'Thinking\u2026') + (a ? '' : overrideHTML(ids[i], c)) + '</div>';
           }).join('') + '</div>';
         }
       }
-      if (shown) body += resHTML(m, c) + '<p class="note">' + esc(q.n) + '</p>';
+      if (shown) body += revealHTML(m, c, ex, skey, GAP) + '<p class="note beat"' + at(skey, endAt) + '>' + esc(q.n) + '</p>';
       body += '</div>';
     }
     var ctl = '';
@@ -230,12 +256,14 @@
       var lockedN = c && c.step === 'ask' ? ids.filter(function (id) { return ansFor(id, c.key); }).length : 0, btn;
       if (!c) btn = '<button class="btn primary big" data-act="open">Open clash ' + (m.w[0] + m.w[1] + 1) + '</button>';
       else if (c.step === 'ask') btn = '<button class="btn primary big" data-act="reveal">Reveal the clash (' + lockedN + '/2 locked)</button>';
-      else if (m.winner) btn = '<button class="btn primary big" data-act="finish">' + esc(sn(m.winner)) + ' wins the match. Continue</button>';
+      else if (m.winner) btn = '<button class="btn primary big" data-act="finish">Continue</button>';
       else btn = '<button class="btn primary big" data-act="next">Next clash</button>';
+      var lines = G.script(g, ctxFor(ids));
       ctl = '<div class="ctl">' + btn + '</div><details><summary>Host tools</summary><div class="row" style="margin-top:8px">'
-        + '<button class="btn sm" data-act="award" data-i="0">Award match to ' + esc(sn(m.a)) + '</button>' + (m.b ? '<button class="btn sm" data-act="award" data-i="1">Award match to ' + esc(sn(m.b)) + '</button>' : '') + '</div></details>';
+        + '<button class="btn sm" data-act="award" data-i="0">Award match to ' + esc(sn(m.a)) + '</button>' + (m.b ? '<button class="btn sm" data-act="award" data-i="1">Award match to ' + esc(sn(m.b)) + '</button>' : '') + '</div></details>'
+        + '<details class="script"' + (ui.scriptOpen ? ' open' : '') + '><summary>Narrator notes (peek only, this screen is the projector)</summary><ul>' + lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul></details>';
     }
-    return '<section class="panel gold">' + head + duel + body + ctl + '</section>';
+    return '<section class="panel gold">' + head + captionHTML(g, m, c, mode, shown) + duel + body + ctl + '</section>';
   }
   function bracketHTML(g) {
     var rounds = (g.history || []).slice();
@@ -413,6 +441,7 @@
     if (sig !== lastSig) { lastSig = sig; render(); }
     timer = setTimeout(tick, S.online ? 1500 : 3500);
   }
+  document.addEventListener('toggle', function (e) { if (e.target.classList && e.target.classList.contains('script')) ui.scriptOpen = e.target.open; }, true);
   document.addEventListener('visibilitychange', function () { if (!document.hidden && CODE) tick(); });
 
   /* ---------- host actions ---------- */
