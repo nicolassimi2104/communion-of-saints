@@ -165,7 +165,17 @@
     { q: 'Which saint founded the Missionaries of Charity in Calcutta?', o: ['Teresa of Calcutta', 'Katharine Drexel', 'Elizabeth Ann Seton', 'Frances Cabrini'], n: 'Founded in 1950.', d: 1 },
     { q: 'Who was elected pope in 1978 as the first non-Italian pope in over four centuries?', o: ['John Paul II', 'Paul VI', 'John Paul I', 'Benedict XVI'], n: 'Karol Wojtyła of Poland.', d: 2 },
     { q: 'In which Gospel does the parable of the Prodigal Son appear?', o: ['Luke', 'Matthew', 'Mark', 'John'], n: 'Luke 15.', d: 2 },
-    { q: 'On what date is the feast of Saint Joseph, husband of Mary?', o: ['March 19', 'March 17', 'May 1', 'December 26'], n: 'March 19. Patrick is March 17.', d: 3 }
+    { q: 'On what date is the feast of Saint Joseph, husband of Mary?', o: ['March 19', 'March 17', 'May 1', 'December 26'], n: 'March 19. Patrick is March 17.', d: 3 },
+    { q: 'Which council, in 431, declared Mary Theotokos ("God-bearer")?', o: ['Ephesus', 'Nicaea', 'Chalcedon', 'Constantinople I'], n: 'The Council of Ephesus, which rejected Nestorius.', d: 3 },
+    { q: 'Which saint wrote The Interior Castle, comparing the soul to a castle of seven mansions?', o: ['Teresa of Ávila', 'John of the Cross', 'Catherine of Siena', 'Francis de Sales'], n: 'Teresa wrote it in 1577.', d: 3 },
+    { q: 'Which Dominican tertiary pressed Pope Gregory XI to return the papacy from Avignon to Rome?', o: ['Catherine of Siena', 'Bridget of Sweden', 'Teresa of Ávila', 'Hildegard of Bingen'], n: 'Gregory XI returned to Rome in 1377.', d: 3 },
+    { q: 'Which bishop of Milan baptized Augustine in 387?', o: ['Ambrose', 'Jerome', 'Gregory the Great', 'Hilary of Poitiers'], n: 'Ambrose, whose preaching had moved Augustine.', d: 3 },
+    { q: 'Who was chosen by lot to take the place of Judas among the Twelve?', o: ['Matthias', 'Barnabas', 'Silas', 'Bartholomew'], n: 'Acts 1:23-26.', d: 3 },
+    { q: 'Which council defined papal infallibility in 1870?', o: ['First Vatican Council', 'Council of Trent', 'Second Vatican Council', 'Fourth Lateran Council'], n: 'Vatican I, under Pius IX.', d: 3 },
+    { q: 'Which pope convened the Council of Trent in 1545?', o: ['Paul III', 'Pius V', 'Julius II', 'Leo X'], n: 'Paul III also approved the Jesuits in 1540.', d: 3 },
+    { q: 'Which bishop of Antioch wrote seven letters on his way to martyrdom in Rome, around AD 107?', o: ['Ignatius', 'Polycarp', 'Clement of Rome', 'Justin Martyr'], n: 'He was martyred in the Colosseum, torn apart by wild beasts.', d: 3 },
+    { q: 'The Council of Nicaea condemned which teaching, that the Son is a creature and not fully divine?', o: ['Arianism', 'Pelagianism', 'Donatism', 'Nestorianism'], n: 'Named for the priest Arius. Nicaea answered with "consubstantial with the Father."', d: 3 },
+    { q: 'Which pope is traditionally said to have persuaded Attila the Hun to turn back from Rome in 452?', o: ['Leo the Great', 'Gregory the Great', 'Gelasius I', 'Sylvester I'], n: 'Leo I, who also shaped the Council of Chalcedon.', d: 3 }
   ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = CS;
