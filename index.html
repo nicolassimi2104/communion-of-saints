@@ -41,6 +41,21 @@
           <div class="tpick compact" id="sidePick" role="radiogroup" aria-labelledby="sideLbl"></div>
         </div>
         <div class="fld">
+          <span class="lbl" id="orderLbl">Religious order</span>
+          <p class="hint">Did your saint belong to an order? Your order adds +2 to the virtue it is known for. Every order gives the same size of bonus, and what you write never changes your strength.</p>
+          <div class="tpick" id="orderPick" role="radiogroup" aria-labelledby="orderLbl"></div>
+          <div id="layWrap" hidden>
+            <span class="lbl" id="layLbl">Which virtue will you lean on?</span>
+            <div class="tpick compact" id="layPick" role="radiogroup" aria-labelledby="layLbl"></div>
+          </div>
+        </div>
+        <div class="fld">
+          <span class="lbl">Make your saint</span>
+          <p class="hint">Your look is just for show. It never changes your strength.</p>
+          <div class="maker"><div class="lookprev" id="lookPreview"></div><div class="lookrows" id="lookRows"></div></div>
+          <div class="row"><button type="button" class="btn sm" id="lookRandom">Surprise me</button></div>
+        </div>
+        <div class="fld">
           <label for="fBlurb">A line about your saint (optional)</label>
           <input type="text" id="fBlurb" maxlength="160" placeholder="Printed on the card. It does not change your strength.">
         </div>
@@ -56,6 +71,7 @@
 
 <script src="config.js"></script>
 <script src="data.js"></script>
+<script src="avatar.js"></script>
 <script src="game.js"></script>
 <script src="api.js"></script>
 <script src="qr.js"></script>

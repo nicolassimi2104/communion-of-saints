@@ -67,6 +67,42 @@
     }
   };
 
+  /* Religious orders. Choosing one gives a small guaranteed boost (ORDER_SIG in game.js) to the virtue
+     the order is known for, and decides the habit your saint wears. Every order gives the same size
+     of boost, so none is stronger than another. "Lay" has no fixed virtue: the player picks one.
+     robe/over = habit colors; the belt and trim are drawn in avatar.js. */
+  CS.ORDERS = {
+    dominican:   { label: 'Dominican',   sig: 'wisdom',       robe: '#efe9d8', over: '#1c1b22',
+                   hint: 'Preachers and scholars, study and truth (Aquinas, Catherine of Siena)', motto: 'Veritas.' },
+    franciscan:  { label: 'Franciscan',  sig: 'charity',      robe: '#7a5230', over: '#7a5230',
+                   hint: 'Poverty, joy and the poor (Francis, Clare, Anthony of Padua)', motto: 'Peace and all good.' },
+    benedictine: { label: 'Benedictine', sig: 'perseverance', robe: '#24242c', over: '#34343f',
+                   hint: 'Prayer and work, steady for life (Benedict, Scholastica)', motto: 'Pray and work.' },
+    augustinian: { label: 'Augustinian', sig: 'charity',      robe: '#22222a', over: '#22222a',
+                   hint: 'One mind and one heart (Augustine, Nicholas of Tolentino, Rita of Cascia)', motto: 'Our heart is restless until it rests in you.' },
+    carmelite:   { label: 'Carmelite',   sig: 'faith',        robe: '#6b4a2b', over: '#f2ede0',
+                   hint: 'Contemplative prayer (Teresa of Avila, John of the Cross, Thérèse)', motto: 'With zeal I am zealous for the Lord.' },
+    jesuit:      { label: 'Jesuit',      sig: 'courage',      robe: '#1b1b22', over: '#1b1b22',
+                   hint: 'Missions and learning on the frontier (Ignatius, Francis Xavier, Isaac Jogues)', motto: 'For the greater glory of God.' },
+    lay:         { label: 'Lay or no order', sig: null,       robe: '#6a98f5', over: '#6a98f5',
+                   hint: 'Everyone else. Pick any one virtue to lean on.', motto: '' }
+  };
+
+  /* Character builder options. Choices are stored as numbers (an index into these lists),
+     so a saint's look is about 100 bytes. Looks never change strength. */
+  CS.LOOK = {
+    skin:  ['#f6d3b3', '#e9b98f', '#d29a6b', '#b97b4f', '#8d5a3a', '#5e3a24'],
+    hairc: ['#2a1a12', '#5a3820', '#a8452a', '#c9a05a', '#9a9a9e', '#e4e0d4'],
+    robe:  ['#6a98f5', '#e5566f', '#47c293', '#e2b84b', '#9b6bd6', '#e8e0cd'],
+    trim:  ['#e2b84b', '#e8e0cd', '#c0392b', '#47c293'],
+    hair:  ['None', 'Short', 'Long', 'Bob', 'Curly', 'Bun'],
+    face:  ['Gentle', 'Joyful', 'Serene', 'Resolute'],
+    head:  ['None', 'Hood', 'Veil', 'Mitre', 'Wreath', 'Cap'],
+    item:  ['None', 'Book', 'Cross', 'Rosary', 'Crook', 'Lily', 'Quill', 'Sword', 'Palm'],
+    halo:  ['Ring', 'Rays', 'Glow', 'None']
+  };
+  CS.LOOK_DEFAULT = { order: 'lay', skin: 1, face: 0, hair: 1, hairc: 1, head: 0, item: 1, halo: 0, robe: 0, trim: 0 };
+
   /* Arenas. Each clash happens in one. The arena sets which virtue is tested and
      which saint types are at home there (they get a bonus, see HOME_MAIN / HOME_SIDE in game.js). */
   CS.ARENAS = [

@@ -27,6 +27,8 @@ create table if not exists public.players (
   joined_at   timestamptz not null default now()
 );
 create index if not exists players_game_idx on public.players(game_code);
+-- Added later: the saint's order and look (a small JSON object). Older rows simply have none.
+alter table public.players add column if not exists look jsonb;
 
 -- Only a player's latest answer is kept: one row per player.
 create table if not exists public.answers (
@@ -61,6 +63,15 @@ begin
   if not (p_types <@ array['martyr','warrior','doctor','mystic','missionary','founder','shepherd','servant']) then raise exception 'Unknown saint type.'; end if;
 end $$;
 
+create or replace function private.check_look(p_look jsonb) returns void
+language plpgsql immutable as $$
+begin
+  if p_look is null then return; end if;
+  if jsonb_typeof(p_look) <> 'object' or length(p_look::text) > 400 then raise exception 'Bad character look.'; end if;
+  if coalesce(p_look->>'order', '') not in ('dominican','franciscan','benedictine','augustinian','carmelite','jesuit','lay') then raise exception 'Unknown order.'; end if;
+  if p_look->>'pick' is not null and (p_look->>'pick') not in ('faith','courage','wisdom','charity','perseverance') then raise exception 'Unknown virtue.'; end if;
+end $$;
+
 -- ---------- public functions (the app calls these) ----------
 
 create or replace function public.create_game(p_code text, p_host_key text) returns void
@@ -79,12 +90,17 @@ language sql security definer set search_path = public stable as $$
     'state', g.state,
     'players', coalesce((
       select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'saint', p.saint,
-                                          'types', to_jsonb(p.types), 'blurb', p.blurb) order by p.joined_at)
+                                          'types', to_jsonb(p.types), 'blurb', p.blurb, 'look', p.look) order by p.joined_at)
       from players p where p.game_code = g.code), '[]'::jsonb)
   ) from games g where g.code = p_code;
 $$;
 
-create or replace function public.join_game(p_code text, p_id uuid, p_secret text, p_name text, p_saint text, p_types text[], p_blurb text) returns void
+-- The look parameter was added later. Drop the old signatures first so the two never coexist
+-- (a call that matched both would be ambiguous). Older pages that omit p_look still work.
+drop function if exists public.join_game(text, uuid, text, text, text, text[], text);
+drop function if exists public.host_add_player(text, text, uuid, text, text, text[], text);
+
+create or replace function public.join_game(p_code text, p_id uuid, p_secret text, p_name text, p_saint text, p_types text[], p_blurb text, p_look jsonb default null) returns void
 language plpgsql security definer set search_path = public as $$
 declare ph text; existing text; n int;
 begin
@@ -93,16 +109,17 @@ begin
   if ph <> 'lobby' then raise exception 'The game has already started.'; end if;
   if p_secret is null or length(p_secret) < 16 then raise exception 'Bad player key.'; end if;
   perform private.check_person(p_name, p_saint, p_types, p_blurb);
+  perform private.check_look(p_look);
   select secret into existing from players where id = p_id;
   if found then
     if existing <> p_secret then raise exception 'That seat belongs to someone else.'; end if;
-    update players set name = btrim(p_name), saint = btrim(p_saint), types = p_types, blurb = coalesce(btrim(p_blurb), '')
+    update players set name = btrim(p_name), saint = btrim(p_saint), types = p_types, blurb = coalesce(btrim(p_blurb), ''), look = p_look
       where id = p_id and game_code = p_code;
   else
     select count(*) into n from players where game_code = p_code;
     if n >= 40 then raise exception 'This game is full.'; end if;
-    insert into players (id, game_code, secret, name, saint, types, blurb)
-      values (p_id, p_code, p_secret, btrim(p_name), btrim(p_saint), p_types, coalesce(btrim(p_blurb), ''));
+    insert into players (id, game_code, secret, name, saint, types, blurb, look)
+      values (p_id, p_code, p_secret, btrim(p_name), btrim(p_saint), p_types, coalesce(btrim(p_blurb), ''), p_look);
   end if;
 end $$;
 
@@ -144,17 +161,18 @@ begin
                    from answers where game_code = p_code), '[]'::jsonb);
 end $$;
 
-create or replace function public.host_add_player(p_code text, p_host_key text, p_id uuid, p_name text, p_saint text, p_types text[], p_blurb text) returns void
+create or replace function public.host_add_player(p_code text, p_host_key text, p_id uuid, p_name text, p_saint text, p_types text[], p_blurb text, p_look jsonb default null) returns void
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
   if not private.is_host(p_code, p_host_key) then raise exception 'Not the host.'; end if;
   if (select coalesce(state->>'phase', 'lobby') from games where code = p_code) <> 'lobby' then raise exception 'The game has already started.'; end if;
   perform private.check_person(p_name, p_saint, p_types, p_blurb);
+  perform private.check_look(p_look);
   select count(*) into n from players where game_code = p_code;
   if n >= 40 then raise exception 'This game is full.'; end if;
-  insert into players (id, game_code, secret, name, saint, types, blurb)
-    values (p_id, p_code, 'host-added-' || p_id::text, btrim(p_name), btrim(p_saint), p_types, coalesce(btrim(p_blurb), ''));
+  insert into players (id, game_code, secret, name, saint, types, blurb, look)
+    values (p_id, p_code, 'host-added-' || p_id::text, btrim(p_name), btrim(p_saint), p_types, coalesce(btrim(p_blurb), ''), p_look);
 end $$;
 
 create or replace function public.host_answer(p_code text, p_host_key text, p_player_id uuid, p_key text, p_choice int, p_ability boolean) returns void
@@ -183,10 +201,10 @@ end $$;
 
 grant execute on function
   public.create_game(text, text), public.get_game(text),
-  public.join_game(text, uuid, text, text, text, text[], text), public.leave_game(text, uuid, text),
+  public.join_game(text, uuid, text, text, text, text[], text, jsonb), public.leave_game(text, uuid, text),
   public.submit_answer(text, uuid, text, text, int, boolean),
   public.set_state(text, text, jsonb), public.get_answers(text, text),
-  public.host_add_player(text, text, uuid, text, text, text[], text),
+  public.host_add_player(text, text, uuid, text, text, text[], text, jsonb),
   public.host_answer(text, text, uuid, text, int, boolean),
   public.kick_player(text, text, uuid), public.clear_players(text, text)
 to anon, authenticated;

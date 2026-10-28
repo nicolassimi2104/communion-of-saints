@@ -11,11 +11,12 @@
   var MAX = 10;         // highest a single virtue can be
   var MAIN_SIG = 4;     // guaranteed points added to the main type's signature virtue
   var SIDE_SIG = 2;     // guaranteed points added to the side type's signature virtue
+  var ORDER_SIG = 2;    // guaranteed points added to the virtue the saint's religious order is known for
   var HOME_MAIN = 3;    // clash bonus when your MAIN type is favored by the arena
   var HOME_SIDE = 2;    // clash bonus when only your SIDE type is favored
   var QUESTION_BONUS = 3;   // fallback worth of a question with no difficulty tag; real values live in CS.DIFFICULTY
   var DOCTRINE_EXTRA = 4;   // Sound Doctrine adds this to a correct answer
-  CS.RULES = { TOTAL: TOTAL, MIN: MIN, MAX: MAX, MAIN_SIG: MAIN_SIG, SIDE_SIG: SIDE_SIG, HOME_MAIN: HOME_MAIN, HOME_SIDE: HOME_SIDE, QUESTION_BONUS: QUESTION_BONUS, DOCTRINE_EXTRA: DOCTRINE_EXTRA };
+  CS.RULES = { TOTAL: TOTAL, MIN: MIN, MAX: MAX, MAIN_SIG: MAIN_SIG, SIDE_SIG: SIDE_SIG, ORDER_SIG: ORDER_SIG, HOME_MAIN: HOME_MAIN, HOME_SIDE: HOME_SIDE, QUESTION_BONUS: QUESTION_BONUS, DOCTRINE_EXTRA: DOCTRINE_EXTRA };
 
   /* ---------- small helpers ---------- */
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -37,9 +38,17 @@
 
   /* ---------- dealing cards ---------- */
   /* Strength is luck, not writing. The saint's TYPE guarantees one strong virtue, then the
-     remaining points are dealt at random. Random weights are drawn per saint (exponential),
+     remaining points are dealt at random. The saint's ORDER then adds a smaller guaranteed boost. Random weights are drawn per saint (exponential),
      so some hands come out lopsided and some come out even. The total is always TOTAL. */
-  function dealStats(types, rng) {
+  /* The virtue a saint's order boosts, or null. A lay saint picks their own virtue (look.pick). */
+  function orderSig(look) {
+    var o = look && CS.ORDERS && CS.ORDERS[look.order];
+    if (!o) return null;
+    if (o.sig) return o.sig;
+    return CS.VIRTUES.some(function (v) { return v.k === look.pick; }) ? look.pick : null;
+  }
+
+  function dealStats(types, rng, look) {
     rng = rng || Math.random;
     var stats = {}, pool = TOTAL - MIN * CS.VIRTUES.length;
     CS.VIRTUES.forEach(function (v) { stats[v.k] = MIN; });
@@ -50,6 +59,7 @@
     var main = CS.TYPES[types[0]], side = types[1] && CS.TYPES[types[1]];
     if (main) bump(main.sig, MAIN_SIG);
     if (side) bump(side.sig, SIDE_SIG);
+    var os = orderSig(look); if (os) bump(os, ORDER_SIG);
     var w = {};
     CS.VIRTUES.forEach(function (v) { w[v.k] = -Math.log(1 - rng()); });
     while (pool > 0) {
@@ -67,7 +77,7 @@
     var s = clone(state);
     s.phase = 'dealt';
     s.cards = {};
-    Object.keys(players).forEach(function (id) { s.cards[id] = { stats: dealStats(players[id].types || [], rng) }; });
+    Object.keys(players).forEach(function (id) { s.cards[id] = { stats: dealStats(players[id].types || [], rng, players[id].look) }; });
     s.matches = []; s.history = []; s.clash = null; s.champion = null; s.cur = 0; s.roundNo = 0;
     return s;
   }
@@ -315,7 +325,7 @@
 
   CS.game = {
     clone: clone, shuffle: shuffle, arenaById: arenaById, abilityOf: abilityOf, homeBonus: homeBonus,
-    dealStats: dealStats, dealCards: dealCards, beginPlay: beginPlay, startClash: startClash,
+    dealStats: dealStats, orderSig: orderSig, dealCards: dealCards, beginPlay: beginPlay, startClash: startClash,
     resolveClash: resolveClash, nextClash: nextClash, finishMatch: finishMatch, award: award,
     endRound: endRound, backToLobby: backToLobby, winsNeeded: winsNeeded, statusFor: statusFor,
     estimateMinutes: estimateMinutes, bestVirtue: bestVirtue, explain: explain, script: script, questionWorth: questionWorth

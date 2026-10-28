@@ -30,12 +30,12 @@
       kind: 'supabase',
       createGame: function (code, hostKey) { return call('create_game', { p_code: code, p_host_key: hostKey }); },
       getGame: function (code) { return call('get_game', { p_code: code }); },
-      join: function (code, p) { return call('join_game', { p_code: code, p_id: p.id, p_secret: p.secret, p_name: p.name, p_saint: p.saint, p_types: p.types, p_blurb: p.blurb || '' }); },
+      join: function (code, p) { return call('join_game', { p_code: code, p_id: p.id, p_secret: p.secret, p_name: p.name, p_saint: p.saint, p_types: p.types, p_blurb: p.blurb || '', p_look: p.look || null }); },
       leave: function (code, id, secret) { return call('leave_game', { p_code: code, p_id: id, p_secret: secret }); },
       submitAnswer: function (code, id, secret, key, choice, ability) { return call('submit_answer', { p_code: code, p_id: id, p_secret: secret, p_key: key, p_choice: choice, p_ability: !!ability }); },
       setState: function (code, hk, state) { return call('set_state', { p_code: code, p_host_key: hk, p_state: state }); },
       getAnswers: function (code, hk) { return call('get_answers', { p_code: code, p_host_key: hk }); },
-      hostAddPlayer: function (code, hk, p) { return call('host_add_player', { p_code: code, p_host_key: hk, p_id: p.id, p_name: p.name, p_saint: p.saint, p_types: p.types, p_blurb: p.blurb || '' }); },
+      hostAddPlayer: function (code, hk, p) { return call('host_add_player', { p_code: code, p_host_key: hk, p_id: p.id, p_name: p.name, p_saint: p.saint, p_types: p.types, p_blurb: p.blurb || '', p_look: p.look || null }); },
       hostAnswer: function (code, hk, pid, key, choice, ability) { return call('host_answer', { p_code: code, p_host_key: hk, p_player_id: pid, p_key: key, p_choice: choice, p_ability: !!ability }); },
       kick: function (code, hk, id) { return call('kick_player', { p_code: code, p_host_key: hk, p_id: id }); },
       clearPlayers: function (code, hk) { return call('clear_players', { p_code: code, p_host_key: hk }); }
@@ -64,6 +64,7 @@
       var t = p.types || [];
       if (t.length < 1 || t.length > 2) throw new Error('Pick one or two saint types.');
       t.forEach(function (x) { if (!CS.TYPES[x]) throw new Error('Unknown saint type.'); });
+      if (p.look && !(CS.ORDERS && CS.ORDERS[p.look.order])) throw new Error('Unknown order.');
     }
     function upsertAnswer(gm, pid, key, choice, ability) { gm.answers[pid] = { player_id: pid, key: key, choice: choice, ability: !!ability }; }
     return {
@@ -72,7 +73,7 @@
       getGame: function (code) {
         return run(function (db) {
           var gm = db.games[code]; if (!gm) return null;
-          return { state: gm.state, players: gm.players.map(function (p) { return { id: p.id, name: p.name, saint: p.saint, types: p.types, blurb: p.blurb }; }) };
+          return { state: gm.state, players: gm.players.map(function (p) { return { id: p.id, name: p.name, saint: p.saint, types: p.types, blurb: p.blurb, look: p.look || null }; }) };
         });
       },
       join: function (code, p) {
@@ -81,8 +82,8 @@
           if (phase(gm) !== 'lobby') throw new Error('The game has already started.');
           checkPerson(p);
           var ex = gm.players.filter(function (x) { return x.id === p.id; })[0];
-          if (ex) { if (ex.secret !== p.secret) throw new Error('That seat belongs to someone else.'); ex.name = p.name.trim(); ex.saint = p.saint.trim(); ex.types = p.types; ex.blurb = p.blurb || ''; }
-          else { if (gm.players.length >= 40) throw new Error('This game is full.'); gm.players.push({ id: p.id, secret: p.secret, name: p.name.trim(), saint: p.saint.trim(), types: p.types, blurb: (p.blurb || '').trim() }); }
+          if (ex) { if (ex.secret !== p.secret) throw new Error('That seat belongs to someone else.'); ex.name = p.name.trim(); ex.saint = p.saint.trim(); ex.types = p.types; ex.blurb = p.blurb || ''; ex.look = p.look || null; }
+          else { if (gm.players.length >= 40) throw new Error('This game is full.'); gm.players.push({ id: p.id, secret: p.secret, name: p.name.trim(), saint: p.saint.trim(), types: p.types, blurb: (p.blurb || '').trim(), look: p.look || null }); }
         });
       },
       leave: function (code, id, secret) { return run(function (db) { var gm = game(db, code); if (phase(gm) === 'lobby') gm.players = gm.players.filter(function (x) { return !(x.id === id && x.secret === secret); }); }); },
@@ -100,7 +101,7 @@
           var gm = host(db, code, hk);
           if (phase(gm) !== 'lobby') throw new Error('The game has already started.');
           checkPerson(p);
-          gm.players.push({ id: p.id, secret: 'host-added', name: p.name.trim(), saint: p.saint.trim(), types: p.types, blurb: (p.blurb || '').trim() });
+          gm.players.push({ id: p.id, secret: 'host-added', name: p.name.trim(), saint: p.saint.trim(), types: p.types, blurb: (p.blurb || '').trim(), look: p.look || null });
         });
       },
       hostAnswer: function (code, hk, pid, key, choice, ability) { return run(function (db) { upsertAnswer(host(db, code, hk), pid, key, choice, ability); }); },

@@ -185,7 +185,7 @@ summary{cursor:pointer;font:500 11px var(--f-display);letter-spacing:.16em;text-
   .status{grid-template-columns:1fr}
   .qrbox{grid-template-columns:1fr;justify-items:center;text-align:center}
 }
-@media (prefers-reduced-motion:reduce){.roster.deal .cardwrap,.live .beat,.meet .card,.meet .vs,.fight .card,.beat .bv.roll{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.portrait .avatar,.fight>article.win .avatar,.roster.deal .cardwrap,.live .beat,.meet .card,.meet .vs,.fight .card,.beat .bv.roll{animation:none!important}}
 
 /* what's happening: caption bar, question worth, reveal beats */
 .caption{margin:12px 0 14px;padding:10px 14px;border-left:3px solid var(--gold);background:rgba(226,184,75,.07)}
@@ -237,3 +237,23 @@ summary{cursor:pointer;font:500 11px var(--f-display);letter-spacing:.16em;text-
 /* narrator notes */
 .script ul{margin:6px 0 0;padding-left:20px;color:var(--muted)}
 .script li{margin:4px 0;font-size:16px}
+
+/* portraits and the character builder */
+.portrait{flex:none;width:66px;height:80px;border:1px solid var(--gold-deep);border-radius:6px;overflow:hidden;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--tone) 38%,var(--glass-2)),var(--glass) 75%)}
+.avatar{display:block;width:100%;height:100%}
+.portrait .avatar{animation:bob 3.2s ease-in-out infinite;transform-origin:50% 100%}
+.card.compact .portrait{width:54px;height:66px}
+.fight>article.win .avatar{animation:hop .8s ease-out}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px) scale(1.01)}}
+@keyframes hop{0%{transform:none}30%{transform:translateY(-10px) scale(1.06)}60%{transform:none}80%{transform:translateY(-3px)}100%{transform:none}}
+.tchip.ord{border-color:var(--gold-deep);color:var(--gold);background:rgba(226,184,75,.08)}
+.maker{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start;margin:6px 0 10px}
+.lookprev{width:150px;height:180px;border:1px solid var(--gold-deep);border-radius:6px;background:radial-gradient(circle at 50% 38%,var(--glass-2),var(--glass) 80%);overflow:hidden}
+.lrow{margin-bottom:8px}
+.lrow .lbl{display:block;font:500 10px var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.lopts{display:flex;flex-wrap:wrap;gap:6px}
+.lchip{min-height:34px;padding:4px 10px;border:1px solid var(--line);background:#0f0919;color:var(--text);font:400 15px var(--f-body);cursor:pointer;border-radius:3px}
+.lchip.on{border-color:var(--gold);color:var(--gold);background:rgba(226,184,75,.12)}
+.sw{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--c);cursor:pointer;padding:0}
+.sw.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--gold)}
+@media (max-width:560px){.maker{grid-template-columns:1fr;justify-items:center}.lookprev{width:132px;height:160px}.lookrows{width:100%}}

@@ -2,6 +2,7 @@
 const assert = require('assert');
 require('../data.js');
 require('../game.js');
+require('../avatar.js');
 const CS = globalThis.CS, G = CS.game, R = CS.RULES;
 
 // small seeded RNG so failures are reproducible
@@ -89,6 +90,27 @@ const all = {};
 }));
 delete all._abil;
 console.log('\nSimulated tournaments (every one finished with a champion):'); console.table(all);
+
+// 6b. orders: a small, equal guaranteed boost; totals and limits still hold; looks never matter
+{
+  const N = 3000, avgOf = (types, look, k) => { let t = 0; for (let i = 0; i < N; i++) { const st = G.dealStats(types, rng, look); t += st[k]; } return t / N; };
+  Object.keys(CS.ORDERS).filter(o => CS.ORDERS[o].sig).forEach(o => {
+    const k = CS.ORDERS[o].sig, bt = [k === 'wisdom' ? 'martyr' : 'doctor'], base = avgOf(bt, null, k), withOrder = avgOf(bt, { order: o }, k);
+    assert(withOrder - base > 1.2, o + ' should lift ' + k + ' (was ' + base.toFixed(2) + ', now ' + withOrder.toFixed(2) + ')');
+    for (let i = 0; i < 500; i++) { const st = G.dealStats([typeKeys[i % 8], typeKeys[(i * 3) % 8]], rng, { order: o }); const v = Object.values(st); assert.strictEqual(v.reduce((a, b) => a + b, 0), R.TOTAL); v.forEach(x => assert(x >= R.MIN && x <= R.MAX)); }
+  });
+  assert.strictEqual(G.orderSig({ order: 'lay', pick: 'faith' }), 'faith');
+  assert.strictEqual(G.orderSig({ order: 'lay' }), null, 'lay with no pick gets nothing');
+  assert.strictEqual(G.orderSig({ order: 'lay', pick: 'luck' }), null);
+  assert.strictEqual(G.orderSig({ order: 'ninja' }), null);
+  // appearance never touches strength: same seed, different looks, same hand
+  const a = G.dealStats(['mystic'], mulberry(9), { order: 'jesuit', skin: 0, hair: 1, item: 2 }), b = G.dealStats(['mystic'], mulberry(9), { order: 'jesuit', skin: 5, hair: 4, item: 7, head: 3 });
+  assert.deepStrictEqual(a, b);
+  // every order and random look renders clean SVG
+  Object.keys(CS.ORDERS).forEach(o => { for (let i = 0; i < 25; i++) { const svg = CS.avatar(CS.randomLook(o)); assert(svg.startsWith('<svg') && !/NaN|undefined/.test(svg)); } });
+  assert.strictEqual(CS.avatar(null), '', 'no look, no avatar');
+  console.log('ok  orders: +' + R.ORDER_SIG + ' to the order virtue for every order, totals intact, looks do not change strength');
+}
 
 // 7. questions: every one is tagged, harder ones are worth more, and the final leans harder than round 1
 CS.QUESTIONS.forEach(q => assert([1,2,3].includes(q.d), 'question needs d: ' + q.q));

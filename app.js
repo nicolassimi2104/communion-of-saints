@@ -7,7 +7,7 @@
   'use strict';
   var CS = window.CS, G = CS.game, TYPES = CS.TYPES, VIRTUES = CS.VIRTUES;
   var VMAP = {}; VIRTUES.forEach(function (v) { VMAP[v.k] = v; });
-  var TYPE_KEYS = Object.keys(TYPES);
+  var TYPE_KEYS = Object.keys(TYPES), ORDER_KEYS = Object.keys(CS.ORDERS);
   var EFFECT_TAGS = { boost: '+3 to you', weaken: '−3 to foe', doctrine: 'Answer +4', vision: 'Three dice', goforth: 'Best virtue', steady: 'Die 5+', blessing: '+1 you, −2 foe', mercy: 'Cancels bonuses' };
 
   /* ---------- small helpers ---------- */
@@ -117,6 +117,15 @@
       return '<span class="tchip' + (i === 0 ? ' main' : '') + (home ? ' home' : '') + '">' + esc(TYPES[k] ? TYPES[k].label : k) + '</span>';
     }).join('') + '</div>';
   }
+  function orderChip(look) {
+    var o = look && CS.ORDERS[look.order]; if (!o) return '';
+    var k = G.orderSig(look);
+    return '<div class="tchips"><span class="tchip ord">' + esc(look.order === 'lay' ? 'Lay' : o.label) + (k ? ' +' + CS.RULES.ORDER_SIG + ' ' + esc(VMAP[k].label) : '') + '</span></div>';
+  }
+  function portraitHTML(p) {
+    var av = CS.avatar(p.look);
+    return av ? '<div class="portrait" aria-hidden="true">' + av + '</div>' : '<div class="medal" aria-hidden="true">' + esc(initials(p.saint)) + '</div>';
+  }
   function pips(n) { var s = ''; for (var i = 1; i <= 10; i++) s += '<i' + (i <= n ? ' class="on"' : '') + '></i>'; return s; }
   function cardHTML(id, o) {
     o = o || {};
@@ -125,7 +134,7 @@
     var p = c.p, arena = o.arena || null;
     var cls = 'card' + (o.compact ? ' compact' : '') + (o.state ? ' ' + o.state : '') + (c.stats ? '' : ' back');
     var tone = c.stats ? 'var(--' + topVirtue(c.stats) + ')' : 'var(--gold-deep)';
-    var head = '<div class="chead"><div class="medal" aria-hidden="true">' + esc(initials(p.saint)) + '</div><div class="cname"><h3>' + esc(p.saint) + '</h3>' + typeChips(c.types, arena) + '</div></div>';
+    var head = '<div class="chead">' + portraitHTML(p) + '<div class="cname"><h3>' + esc(p.saint) + '</h3>' + typeChips(c.types, arena) + orderChip(p.look) + '</div></div>';
     if (!c.stats) {
       return '<article class="' + cls + '" style="--tone:' + tone + '">' + head
         + '<p class="flavor">' + esc(p.blurb || (TYPES[c.types[0]] ? TYPES[c.types[0]].motto : '')) + '</p>'
@@ -346,7 +355,7 @@
     }
     setForm(false);
     if (phase === 'dealt') {
-      top.innerHTML = '<section class="panel gold"><p class="eyebrow">The cards are dealt</p><h2>Look at what the saints were given</h2><p class="muted">Each saint’s type guarantees one strong virtue. The rest was luck. Not happy with the draw? Deal again.</p>'
+      top.innerHTML = '<section class="panel gold"><p class="eyebrow">The cards are dealt</p><h2>Look at what the saints were given</h2><p class="muted">Each saint’s type and order guarantee strong virtues. The rest was luck. Not happy with the draw? Deal again.</p>'
         + '<div class="ctl"><button class="btn primary big" data-act="begin">Begin round 1</button><button class="btn" data-act="deal">Deal again</button><button class="btn" data-act="reset">Back to the lobby</button></div></section>';
       bottom.innerHTML = rosterHTML({ deal: true });
     } else if (phase === 'play') {
@@ -479,7 +488,60 @@
   }
 
   /* ---------- form ---------- */
+  /* ---------- character builder ---------- */
+  var LOOK_ROWS = [['skin', 'Skin', 'sw'], ['hair', 'Hair', 'ch'], ['hairc', 'Hair color', 'sw'], ['face', 'Face', 'ch'], ['head', 'Headwear', 'ch'],
+    ['item', 'Holding', 'ch'], ['halo', 'Halo', 'ch'], ['trim', 'Accent color', 'sw'], ['robe', 'Robe color (lay saints)', 'sw', true]];
+  try { var savedLook = JSON.parse(store.get('cos.look')); } catch (e) { savedLook = null; }
+  ui.look = Object.assign({}, CS.LOOK_DEFAULT, { order: '' }, savedLook || {});
+  function lookPayload() {
+    var l = ui.look, out = { order: l.order };
+    ['skin', 'face', 'hair', 'hairc', 'head', 'item', 'halo', 'trim', 'robe'].forEach(function (k) { out[k] = Number(l[k]) || 0; });
+    if (l.order === 'lay') out.pick = l.pick;
+    return out;
+  }
+  function refreshLook() {
+    var l = ui.look, lay = l.order === 'lay';
+    $('lookPreview').innerHTML = CS.avatar(Object.assign({}, l, { order: l.order || 'lay' }));
+    $('layWrap').hidden = !lay;
+    $('lookRows').innerHTML = LOOK_ROWS.filter(function (r) { return !r[3] || lay; }).map(function (r) {
+      return '<div class="lrow"><span class="lbl">' + r[1] + '</span><div class="lopts">' + CS.LOOK[r[0]].map(function (v, i) {
+        var on = Number(l[r[0]]) === i ? ' on' : '';
+        return r[2] === 'sw'
+          ? '<button type="button" class="sw' + on + '" style="--c:' + v + '" data-look="' + r[0] + '" data-i="' + i + '" aria-label="' + r[1] + ' ' + (i + 1) + '" aria-pressed="' + !!on + '"></button>'
+          : '<button type="button" class="lchip' + on + '" data-look="' + r[0] + '" data-i="' + i + '" aria-pressed="' + !!on + '">' + esc(v) + '</button>';
+      }).join('') + '</div></div>';
+    }).join('');
+    store.set('cos.look', JSON.stringify(l));
+  }
+  function syncLookRadios() {
+    Array.prototype.forEach.call($('joinForm').querySelectorAll('input[name="order"],input[name="pick"]'), function (r) {
+      r.checked = (r.name === 'order' ? r.value === ui.look.order : r.value === ui.look.pick);
+      r.closest('.topt').classList.toggle('on', r.checked);
+    });
+  }
+  $('joinForm').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-look]'); if (!b) return;
+    ui.look[b.getAttribute('data-look')] = Number(b.getAttribute('data-i')); refreshLook();
+  });
+  $('lookRandom').addEventListener('click', function () {
+    var r = CS.randomLook(ui.look.order || 'lay');
+    ['skin', 'hairc', 'robe', 'trim', 'hair', 'face', 'head', 'item', 'halo'].forEach(function (k) { ui.look[k] = r[k]; });
+    refreshLook();
+  });
+  $('joinForm').addEventListener('change', function (e) {
+    if (e.target.name === 'order') { ui.look.order = e.target.value; refreshLook(); }
+    else if (e.target.name === 'pick') { ui.look.pick = e.target.value; store.set('cos.look', JSON.stringify(ui.look)); }
+  });
+
   function buildPickers() {
+    $('orderPick').innerHTML = ORDER_KEYS.map(function (k) {
+      var o = CS.ORDERS[k];
+      return '<label class="topt"><input class="sr" type="radio" name="order" value="' + k + '"><b>' + esc(o.label) + (o.sig ? ' &middot; +' + CS.RULES.ORDER_SIG + ' ' + esc(VMAP[o.sig].label) : '') + '</b><span class="h">' + esc(o.hint) + '</span></label>';
+    }).join('');
+    $('layPick').innerHTML = VIRTUES.map(function (v) {
+      return '<label class="topt"><input class="sr" type="radio" name="pick" value="' + v.k + '"><b>+' + CS.RULES.ORDER_SIG + ' ' + esc(v.label) + '</b></label>';
+    }).join('');
+    syncLookRadios(); refreshLook();
     $('mainPick').innerHTML = TYPE_KEYS.map(function (k) {
       return '<label class="topt"><input class="sr" type="radio" name="mainType" value="' + k + '"><b>' + esc(TYPES[k].label) + '</b><span class="h">' + esc(TYPES[k].hint) + '</span></label>';
     }).join('');
@@ -501,17 +563,20 @@
     if (!name) { msg.textContent = 'Enter a name.'; msg.className = 'msg bad'; return; }
     if (!saint) { msg.textContent = 'Enter a saint.'; msg.className = 'msg bad'; return; }
     if (!main) { msg.textContent = 'Pick a main type for your saint.'; msg.className = 'msg bad'; return; }
+    if (!ui.look.order) { msg.textContent = 'Pick a religious order, or choose Lay or no order.'; msg.className = 'msg bad'; return; }
+    if (ui.look.order === 'lay' && !G.orderSig(ui.look)) { msg.textContent = 'Pick the virtue your saint will lean on.'; msg.className = 'msg bad'; return; }
+    var look = lookPayload();
     var types = [main]; if (side && side !== main) types.push(side);
     ui.busy = true; $('fGo').disabled = true; msg.textContent = 'Joining…';
     try {
       if (S.isHost) {
-        await api.hostAddPlayer(CODE, S.hostKey, { id: uuid(), name: name, saint: saint, types: types, blurb: blurb });
+        await api.hostAddPlayer(CODE, S.hostKey, { id: uuid(), name: name, saint: saint, types: types, blurb: blurb, look: look });
         $('fName').value = ''; $('fSaint').value = ''; $('fBlurb').value = '';
-        Array.prototype.forEach.call($('joinForm').querySelectorAll('input[type=radio]'), function (r) { r.checked = (r.value === ''); r.closest('.topt').classList.toggle('on', r.checked); });
+        Array.prototype.forEach.call($('joinForm').querySelectorAll('input[name=mainType],input[name=sideType]'), function (r) { r.checked = (r.value === ''); r.closest('.topt').classList.toggle('on', r.checked); });
         msg.textContent = 'Added.'; toast('A saint joins the Communion.');
       } else {
         var me = ensureMe();
-        await api.join(CODE, { id: me.id, secret: me.secret, name: name, saint: saint, types: types, blurb: blurb });
+        await api.join(CODE, { id: me.id, secret: me.secret, name: name, saint: saint, types: types, blurb: blurb, look: look });
         store.set('cos.name', name);
         msg.textContent = '';
       }
